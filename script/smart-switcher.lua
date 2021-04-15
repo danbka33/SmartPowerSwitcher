@@ -38,6 +38,22 @@ function OnTick(event)
         global.SmartSwitchers = global.SmartSwitchers or {}
         -- remove invalidated stops
         for switcherID, switcher in pairs(global.SmartSwitchers) do
+            local disabled = false;
+
+            local k = 0;
+            for _, redc in pairs(switcher.entity.circuit_connected_entities.red) do
+                if k == 1 then
+                    switcher.entity.disconnect_neighbour(({ target_entity = redc, wire = defines.wire_type.red }))
+                end
+                k = k + 1;
+            end
+            k = 0;
+            for _, grennc in pairs(switcher.entity.circuit_connected_entities.green) do
+                if k == 1 then
+                    switcher.entity.disconnect_neighbour(({ target_entity = grennc, wire = defines.wire_type.green }))
+                end
+                k = k + 1;
+            end
 
             local limitedSignals = {}
             local signals_filtered = {}
@@ -46,195 +62,228 @@ function OnTick(event)
                 if debug_log then
                     log('Short Circuit')
                 end
+                turnOffSwitcher(switcher)
                 setLamp(switcher, "red", 1)
-                return
+                goto continue
             end
 
+            local foundEnableSignal = nil;
+
             if switcher.input and switcher.input.valid and switcher.settingInput and switcher.settingInput.valid then
-                local signals = switcher.settingInput.get_merged_signals()
-                if not signals then
+                local settingSignals = switcher.settingInput.get_merged_signals()
+                if not settingSignals then
                     if debug_log then
                         log('no settings input signals')
                     end
+                    turnOffSwitcher(switcher)
                     setLamp(switcher, "red", 1)
-                    return
+                    goto continue
                 end -- either lamp and lampctrl are not connected or lampctrl has no output signal
 
                 local signal_type_virtual = "virtual"
 
-                for _, v in pairs(signals) do
+                local foundThresholdSignal = false
+                local foundTurnOffSignal = false
+                local foundTurnOnSignal = false
+
+                for _, v in pairs(settingSignals) do
                     if v.signal.name and v.signal.type then
                         if v.signal.type ~= signal_type_virtual then
                             -- add item and fluid signals to new array
-
-                            if v.count > 0 then
-                                if not limitedSignals[v.signal.name] then
-                                    limitedSignals[v.signal.name] = v.count
-                                    switcher.limitedSignalsGain[v.signal.name] = false
-                                else
-                                    limitedSignals[v.signal.name] = v.count
-                                end
+                            if v.signal.name and v.count > 0 then
+                                limitedSignals[v.signal.name] = v.count
                             else
                                 signals_filtered[v.signal] = v.count
                             end
-
                         end
 
                         if v.signal.name == smart_switcher_threshold_signal and v.count > 0 then
                             switcher.delta = v.count
+                            foundThresholdSignal = true
+                        end
+
+                        if v.signal.name == smart_switcher_enable_signal then
+                            foundEnableSignal = v.count
                         end
 
                         if v.signal.name == smart_switcher_off_delay_signal and v.count > 0 then
                             switcher.power_off_delay = v.count
+                            foundTurnOffSignal = true
                         end
 
-                        if v.signal.name == smart_switcher_off_delay_signal and v.count > 0 then
+                        if v.signal.name == smart_switcher_on_delay_signal and v.count > 0 then
                             switcher.power_on_delay = v.count
+                            foundTurnOnSignal = true
                         end
                     end
+                end
+
+                if foundEnableSignal and foundEnableSignal > 0 then
+                    turnOnSwitcher(switcher)
+                    setLamp(switcher, "green", 1)
+                    goto continue
+                end
+
+                if foundEnableSignal and foundEnableSignal < 0 then
+                    turnOffSwitcher(switcher)
+                    setLamp(switcher, "yellow", 1)
+                    goto continue
+                end
+
+                if(not next(limitedSignals) and not next(signals_filtered)) then
+                    disabled = true
+                    turnOffSwitcher(switcher)
+                    setLamp(switcher, "red", 1)
+                    if(debug_log) then
+                        log('no settings input signals 2')
+                    end
+                end
+
+                if not foundThresholdSignal then
+                    switcher.delta = default_threshold
+                end
+
+                if not foundTurnOffSignal then
+                    switcher.power_off_delay = power_off_delay
+                end
+
+                if not foundTurnOnSignal then
+                    switcher.power_on_delay = power_on_delay
                 end
 
                 if next(switcher.limitedSignalsGain) then
-                    for name, _ in pairs(switcher.limitedSignalsGain) do
-                        if not limitedSignals[name] then
-                            switcher.limitedSignalsGain[name] = nil
-                        end
+                    for name, state in pairs(switcher.limitedSignalsGain) do
+                        log('gain ' .. name .. ': ' .. tostring(state))
+                --        if limitedSignals[name] then
+                --            switcher.limitedSignalsGain[name] = nil
+                --        end
                     end
                 end
-            end
 
-            local signals = switcher.input.get_merged_signals()
-            if not signals then
-                if debug_log then
-                    log('no input signals')
+                local signals = switcher.input.get_merged_signals()
+
+                local filtered_object_signals = {}
+
+                for _, v in pairs(signals) do
+                    if v.signal.name and v.signal.type and v.signal.type ~= signal_type_virtual then
+                        filtered_object_signals[v.signal] = v.count
+                    end
                 end
-                setLamp(switcher, "red", 1)
-                return
-            end -- either lamp and lampctrl are not connected or lampctrl has no output signal
 
-            local filtered_object_signals = {}
+                if next(signals_filtered) then
 
-            for _, v in pairs(signals) do
-                if v.signal.name and v.signal.type and v.signal.type ~= signal_type_virtual then
-                    filtered_object_signals[v.signal] = v.count
-                end
-            end
-
-            local disabled = false;
-
-            if next(signals_filtered) then
-
-                for signal, count in pairs(signals_filtered) do
-                    if count < 0 then
-                        local foundedObject = nil;
-                        for objectSignal, objectCount in pairs(filtered_object_signals) do
-                            if objectSignal.name == signal.name then
-                                foundedObject = {
-                                    signal = signal,
-                                    count = objectCount
-                                }
+                    for signal, count in pairs(signals_filtered) do
+                        if count < 0 then
+                            local foundedObject = nil;
+                            for objectSignal, objectCount in pairs(filtered_object_signals) do
+                                if objectSignal.name == signal.name then
+                                    foundedObject = {
+                                        signal = signal,
+                                        count = objectCount
+                                    }
+                                end
                             end
-                        end
 
-                        if not foundedObject then
-                            disabled = true
-                            if debug_log then
-                                log(signal.name .. " not found ")
-                            end
-                        else
-                            if foundedObject.count <= math.abs(count) then
+                            if not foundedObject then
                                 disabled = true
                                 if debug_log then
-                                    log(foundedObject.signal.name .. " less than " .. tostring(count))
+                                    log(signal.name .. " not found ")
+                                end
+                            else
+                                if foundedObject.count < math.abs(count) then
+                                    disabled = true
+                                    if debug_log then
+                                        log(foundedObject.signal.name .. " less than " .. tostring(math.abs(count)))
+                                    end
                                 end
                             end
                         end
                     end
                 end
-            end
 
-            if next(limitedSignals) then
-                local foundAnyObject = false;
-                for name, count in pairs(limitedSignals) do
-                    local bottom = count - switcher.delta;
+                if next(limitedSignals) then
+                    local foundAnyObject = false;
+                    for name, count in pairs(limitedSignals) do
 
-                    if (bottom >= count) then
-                        disabled = true
-                        setLamp(switcher, "red", 1)
-                        if debug_log then
-                            log('disabled because bottom limit more or equals top limit')
+                        if name then
+
+                            local bottom = count - switcher.delta;
+
+                            log('bottom: ' .. tostring(bottom) .. ' | top: ' .. count)
+
+                            if (switcher.delta >= count or math.abs(bottom) >= count) then
+                                turnOffSwitcher(switcher)
+                                setLamp(switcher, "red", 1)
+                                if debug_log then
+                                    log('disabled because bottom limit more or equals top limit')
+                                end
+                                goto continue
+                            end
+
+                            local foundedObject = nil;
+                            for objectSignal, objectCount in pairs(filtered_object_signals) do
+                                if objectSignal.name == name then
+                                    foundedObject = {
+                                        signal = name,
+                                        count = objectCount
+                                    }
+                                end
+                            end
+
+                            if foundedObject then
+                                foundAnyObject = true
+                            end
+
+                            if switcher.limitedSignalsGain[name] == nil then
+                                switcher.limitedSignalsGain[name] = false
+                                log(name .. ' not found key. Set to false')
+                            end
+
+                            if foundedObject and foundedObject.count >= count and switcher.limitedSignalsGain[name] == false then
+                                switcher.limitedSignalsGain[name] = true
+                                log('current item count more than TOP limit. Set to true')
+                            end
+
+                            if switcher.limitedSignalsGain[name] == true and foundedObject and foundedObject.count <= bottom then
+                                switcher.limitedSignalsGain[name] = false
+                                log('current item count less than BOTTOM limit. Set to false')
+                            end
+
+                            if switcher.limitedSignalsGain[name] == true then
+                                disabled = true
+                                if debug_log then
+                                    log("gain resource")
+                                end
+                            end
                         end
                     end
 
-                    local foundedObject = nil;
-                    for objectSignal, objectCount in pairs(filtered_object_signals) do
-                        if objectSignal.name == name then
-                            foundedObject = {
-                                signal = name,
-                                count = objectCount
-                            }
-                        end
-                    end
-
-                    if foundedObject then
-                        foundAnyObject = true
-                    end
-
-                    if not switcher.limitedSignalsGain[name] then
-                        switcher.limitedSignalsGain[name] = false
-                    end
-
-                    if foundedObject and foundedObject.count >= count then
-                        switcher.limitedSignalsGain[name] = true
-                    end
-
-                    if switcher.limitedSignalsGain[name] == true and foundedObject and foundedObject.count <= bottom then
-                        switcher.limitedSignalsGain[name] = false
-                    end
-
-                    if switcher.limitedSignalsGain[name] == true then
-                        disabled = true
-                        if debug_log then
-                            log("gain resource")
+                    if foundAnyObject == false and next(switcher.limitedSignalsGain) then
+                        log('Not found any object. Set all gain to false')
+                        for name, _ in pairs(switcher.limitedSignalsGain) do
+                            switcher.limitedSignalsGain[name] = false
                         end
                     end
                 end
-
-                if foundAnyObject == false and next(switcher.limitedSignalsGain) then
-                    for name, _ in pairs(switcher.limitedSignalsGain) do
-                        switcher.limitedSignalsGain[name] = false
-                    end
-                end
             end
 
-            log("Enabled: " .. tostring(switcher.enabled))
+
+            log("Current enabled: " .. tostring(switcher.enabled) .. ' | Should be disabled: ' .. tostring(disabled))
             --log(switcher.entity.get_or_create_control_behavior().help());
 
             if switcher.power_off_started and tick > switcher.power_off_started then
-                --switcher.entity.power_switch_state = false;
-                --switcher.entity.active = false;
-                switcher.power_off_started = nil;
 
-                switcher.enabled = false;
-                if switcher.hack and switcher.hack.valid then
-                    switcher.hack.get_control_behavior().parameters = { { index = 1, signal = { type = "virtual", name = smart_switcher_enable_signal }, count = 0 } }
-                end
-
+                turnOffSwitcher(switcher)
                 setLamp(switcher, "yellow", 1)
+
                 if debug_log then
                     log("Set power OFF")
                 end
             elseif switcher.power_on_started and tick > switcher.power_on_started then
-                --switcher.entity.power_switch_state = true;
-                --switcher.entity.active = true;
-                switcher.power_on_started = nil;
 
-                switcher.enabled = true;
-                if switcher.hack and switcher.hack.valid then
-                    switcher.hack.get_control_behavior().parameters = { { index = 1, signal = { type = "virtual", name = smart_switcher_enable_signal }, count = 1 } }
-                end
-
+                turnOnSwitcher(switcher)
                 setLamp(switcher, "green", 1)
+
                 if debug_log then
                     log("Set power ON")
                 end
@@ -278,8 +327,27 @@ function OnTick(event)
             --                                                                                         constant = 0 } }
             --end
 
+            ::continue::
         end
 
+    end
+end
+
+function turnOnSwitcher(switcher)
+    switcher.power_on_started = nil;
+
+    switcher.enabled = true;
+    if switcher.hack and switcher.hack.valid then
+        switcher.hack.get_control_behavior().parameters = { { index = 1, signal = { type = "virtual", name = smart_switcher_enable_signal }, count = 1 } }
+    end
+end
+
+function turnOffSwitcher(switcher)
+    switcher.power_off_started = nil;
+
+    switcher.enabled = false;
+    if switcher.hack and switcher.hack.valid then
+        switcher.hack.get_control_behavior().parameters = { { index = 1, signal = { type = "virtual", name = smart_switcher_enable_signal }, count = 0 } }
     end
 end
 
@@ -290,49 +358,14 @@ function CreateSmartSwitcher(entity)
     local switcher_offset = smart_switcher_entity_names[entity.name]
     local posIn, posOut, rotOut, search_area
     --log("Stop created at "..entity.position.x.."/"..entity.position.y..", orientation "..entity.direction)
-    if entity.direction == 0 then
-        --SN
-        posIn = { entity.position.x + switcher_offset, entity.position.y - 1 }
-        posOut = { entity.position.x - 1 + switcher_offset, entity.position.y - 1 }
-        rotOut = 0
-        search_area = {
-            { entity.position.x + 0.001 - 1 + switcher_offset, entity.position.y + 0.001 - 1 },
-            { entity.position.x - 0.001 + 1 + switcher_offset, entity.position.y - 0.001 }
-        }
-    elseif entity.direction == 2 then
-        --WE
-        posIn = { entity.position.x, entity.position.y + switcher_offset }
-        posOut = { entity.position.x, entity.position.y - 1 + switcher_offset }
-        rotOut = 2
-        search_area = {
-            { entity.position.x + 0.001, entity.position.y + 0.001 - 1 + switcher_offset },
-            { entity.position.x - 0.001 + 1, entity.position.y - 0.001 + 1 + switcher_offset }
-        }
-    elseif entity.direction == 4 then
-        --NS
-        posIn = { entity.position.x - 1 - switcher_offset, entity.position.y }
-        posOut = { entity.position.x - switcher_offset, entity.position.y }
-        rotOut = 4
-        search_area = {
-            { entity.position.x + 0.001 - 1 - switcher_offset, entity.position.y + 0.001 },
-            { entity.position.x - 0.001 + 1 - switcher_offset, entity.position.y - 0.001 + 1 }
-        }
-    elseif entity.direction == 6 then
-        --EW
-        posIn = { entity.position.x - 1, entity.position.y - 1 - switcher_offset }
-        posOut = { entity.position.x - 1, entity.position.y - switcher_offset }
-        rotOut = 6
-        search_area = {
-            { entity.position.x + 0.001 - 1, entity.position.y + 0.001 - 1 - switcher_offset },
-            { entity.position.x - 0.001, entity.position.y - 0.001 + 1 - switcher_offset }
-        }
-    else
-        --invalid orientation
-        --if message_level >= 1 then printmsg({"ltn-message.error-stop-orientation", tostring(entity.direction)}, entity.force) end
-        --if debug_log then log("(CreateStop) invalid train stop orientation "..tostring(entity.direction) ) end
-        entity.destroy()
-        return
-    end
+
+    posIn = { entity.position.x + switcher_offset, entity.position.y }
+    posOut = { entity.position.x - 1 + switcher_offset, entity.position.y }
+    rotOut = 0
+    search_area = {
+        { entity.position.x + 0.001 - 1 + switcher_offset, entity.position.y + 0.001 - 1 },
+        { entity.position.x - 0.001 + 1 + switcher_offset, entity.position.y - 0.001 + 1 }
+    }
 
     local input, settingInput, lampctrl, hack
     local ghosts = entity.surface.find_entities(search_area)
@@ -425,6 +458,7 @@ function CreateSmartSwitcher(entity)
     entity.connect_neighbour({ target_entity = hack, wire = defines.wire_type.red })
     entity.connect_neighbour({ target_entity = hack, wire = defines.wire_type.green })
 
+    entity.get_or_create_control_behavior().connect_to_logistic_network = false;
     entity.get_or_create_control_behavior().circuit_condition = { condition = { comparator = ">",
                                                                                 first_signal = { type = "virtual", name = smart_switcher_enable_signal },
                                                                                 constant = 0 } }

@@ -1,3 +1,9 @@
+--[[ Copyright (c) 2021 danbka33
+ * Part of Smart Power Switcher
+ *
+ * See LICENSE.md in the project directory for license information.
+--]]
+
 debug_log = settings.global["spw-interface-debug-logfile"].value
 power_on_delay = settings.global["spw-on-delay"].value
 power_off_delay = settings.global["spw-off-delay"].value

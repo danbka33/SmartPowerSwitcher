@@ -1,3 +1,8 @@
+--[[ Copyright (c) 2021 danbka33
+ * Part of Smart Power Switcher
+ *
+ * See LICENSE.md in the project directory for license information.
+--]]
 
 local function initialize(oldVersion, newVersion)
     global.tick_state = 0 -- index determining on_tick update mode 0: init, 1: stop update, 2: sort requests, 3: parse requests, 4: raise API update events

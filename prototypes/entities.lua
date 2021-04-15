@@ -1,3 +1,9 @@
+--[[ Copyright (c) 2021 danbka33
+ * Part of Smart Power Switcher
+ *
+ * See LICENSE.md in the project directory for license information.
+--]]
+
 local smart_switcher = flib.copy_prototype(data.raw["power-switch"]["power-switch"], "smart-power-switcher")
 smart_switcher.icon = "__SmartPowerSwitcher__/graphics/icons/smart-power-switch.png"
 smart_switcher.icon_size = 64

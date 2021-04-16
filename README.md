@@ -5,7 +5,7 @@ Adds smart power switcher highly configurable.
 ### Settings Input
 This input is responsible for the Smart Power Switcher settings.
 ### Data Input
-This input is responsible for the data coming from the storages, tanks or logical network.
+This input is responsible for the data coming from the storages, tanks or circuit network.
 
 ## Signals
 If no signal is specified, the default settings are used, which can be changed in the mod settings.

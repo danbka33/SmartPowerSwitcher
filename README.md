@@ -69,3 +69,7 @@ Smart Power Switch is connected.
 Smart Power Switch is disconnected.
 ### Pink
 Smart Power Switch change connection state.
+
+## Video Guides
+
+[Russian / На русском языке. Tutorial by fed1s.](https://www.youtube.com/watch?v=yC3pubprHkg)

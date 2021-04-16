@@ -38,7 +38,7 @@ Settings:
 - Red signal **-1**
 
 If the green signal is more than 150,000, then the plant will stop until the green signal becomes 100,000 (150,000 - 50,000).
-If the input does not have at least 1 green signal, the plant will shut down.
+If the input does not have at least 1 red signal, the plant will shut down.
 
 Settings:
 - Iron Ore **-1**

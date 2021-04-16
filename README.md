@@ -56,7 +56,7 @@ Settings:
 - Oxygen **150,000**
 - Threshold **50,000**
 
-If the slag is more than 100,000, then the plant will stop until the iron plate becomes 50,000 (100,000 - 50,000).
+If the slag is more than 100,000, then the plant will stop until the slag becomes 50,000 (100,000 - 50,000).
 If oxygen or hydrogen is more than 150,000, then the plant will stop until one of them becomes 100,000 (150,000 - 50,000).
 
 ## Signal Lamp

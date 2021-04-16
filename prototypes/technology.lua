@@ -8,6 +8,7 @@ data:extend({
     {
         type = "technology",
         name = "smart-power-switcher",
+        localised_description = {"technology-description.smart-power-switcher"},
         icon = "__base__/graphics/icons/power-switch.png",
         icon_size = 64,
         prerequisites = {"circuit-network"},
@@ -20,12 +21,12 @@ data:extend({
         },
         unit =
         {
-            count = 300,
+            count = 100,
             ingredients = {
                 {"automation-science-pack", 1},
                 {"logistic-science-pack", 1}
             },
-            time = 30
+            time = 15
         },
         order = "c-g-c"
     }

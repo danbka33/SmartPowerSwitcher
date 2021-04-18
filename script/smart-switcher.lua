@@ -277,6 +277,14 @@ function OnTick(event)
                 if debug_log then
                     log("Set power ON")
                 end
+            else
+                for _, parameter in pairs(switcher.lamp_control.get_control_behavior().parameters) do
+                    if parameter.signal and parameter.signal.type and parameter.signal.name
+                            and parameter.signal.type == 'virtual' and parameter.signal.name == 'signal-red'
+                            and disabled == true then
+                        setLamp(switcher, "yellow", 1)
+                    end
+                end
             end
 
             if (switcher.power_off_started and tick < switcher.power_off_started)

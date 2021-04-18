@@ -36,7 +36,7 @@ function OnTick(event)
 
     for i = 1, updates_per_tick, 1 do
         global.SmartSwitchers = global.SmartSwitchers or {}
-        -- remove invalidated stops
+        -- remove invalidated switchers
         for switcherID, switcher in pairs(global.SmartSwitchers) do
             local disabled = false;
 
@@ -141,15 +141,6 @@ function OnTick(event)
                     switcher.power_on_delay = power_on_delay
                 end
 
-                --if next(switcher.limitedSignalsGain) then
-                --    for name, state in pairs(switcher.limitedSignalsGain) do
-                --        log('gain ' .. name .. ': ' .. tostring(state))
-                --        --        if limitedSignals[name] then
-                --        --            switcher.limitedSignalsGain[name] = nil
-                --        --        end
-                --    end
-                --end
-
                 local signals = switcher.input.get_merged_signals()
 
                 local filtered_object_signals = {}
@@ -200,8 +191,6 @@ function OnTick(event)
 
                             local bottom = count - switcher.delta;
 
-                            --log('bottom: ' .. tostring(bottom) .. ' | top: ' .. count)
-
                             if (switcher.delta >= count or math.abs(bottom) >= count) then
                                 turnOffSwitcher(switcher)
                                 setLamp(switcher, "red", 1)
@@ -227,17 +216,14 @@ function OnTick(event)
 
                             if switcher.limitedSignalsGain[name] == nil then
                                 switcher.limitedSignalsGain[name] = false
-                                --log(name .. ' not found key. Set to false')
                             end
 
                             if foundedObject and foundedObject.count >= count and switcher.limitedSignalsGain[name] == false then
                                 switcher.limitedSignalsGain[name] = true
-                                --log('current item count more than TOP limit. Set to true')
                             end
 
                             if switcher.limitedSignalsGain[name] == true and foundedObject and foundedObject.count <= bottom then
                                 switcher.limitedSignalsGain[name] = false
-                                --log('current item count less than BOTTOM limit. Set to false')
                             end
 
                             if switcher.limitedSignalsGain[name] == true then
@@ -250,16 +236,12 @@ function OnTick(event)
                     end
 
                     if foundAnyObject == false and next(switcher.limitedSignalsGain) then
-                        --log('Not found any object. Set all gain to false')
                         for name, _ in pairs(switcher.limitedSignalsGain) do
                             switcher.limitedSignalsGain[name] = false
                         end
                     end
                 end
             end
-
-            --log("Current enabled: " .. tostring(switcher.enabled) .. ' | Should be disabled: ' .. tostring(disabled))
-            --log(switcher.entity.get_or_create_control_behavior().help());
 
             if switcher.power_off_started and tick > switcher.power_off_started then
 
@@ -313,18 +295,6 @@ function OnTick(event)
                 end
             end
 
-
-
-            --switcher.entity.get_or_create_control_behavior().connect_to_logistic_network = true;
-
-            --if disabled == true then
-
-            --else
-            --    switcher.entity.get_or_create_control_behavior().circuit_condition = { condition = { comparator = "=",
-            --                                                                                         first_signal = { type = "virtual", name = "signal-everything" },
-            --                                                                                         constant = 0 } }
-            --end
-
             :: continue ::
         end
 
@@ -355,7 +325,6 @@ function CreateSmartSwitcher(entity)
     end
     local switcher_offset = smart_switcher_entity_names[entity.name]
     local posIn, posOut, rotOut, search_area
-    --log("Stop created at "..entity.position.x.."/"..entity.position.y..", orientation "..entity.direction)
 
     posIn = { entity.position.x + switcher_offset, entity.position.y }
     posOut = { entity.position.x - 1 + switcher_offset, entity.position.y }
@@ -371,29 +340,22 @@ function CreateSmartSwitcher(entity)
         if ghost.valid then
             if ghost.name == "entity-ghost" then
                 if ghost.ghost_name == smart_switcher_settings then
-                    -- log("reviving ghost input at "..ghost.position.x..", "..ghost.position.y)
                     _, settingInput = ghost.revive()
                 elseif ghost.ghost_name == smart_switcher_input then
-                    -- log("reviving ghost output at "..ghost.position.x..", "..ghost.position.y)
                     _, input = ghost.revive()
                 elseif ghost.ghost_name == smart_switcher_lamp_control then
-                    -- log("reviving ghost lamp-control at "..ghost.position.x..", "..ghost.position.y)
                     _, lampctrl = ghost.revive()
                 elseif ghost.ghost_name == smart_switcher_hack then
-                    -- log("reviving ghost lamp-control at "..ghost.position.x..", "..ghost.position.y)
                     _, hack = ghost.revive()
                 end
-                -- something has built I/O already (e.g.) Creative Mode Instant Blueprint
             elseif ghost.name == smart_switcher_settings then
                 settingInput = ghost
-                -- log("Found existing input at "..ghost.position.x..", "..ghost.position.y)
             elseif ghost.name == smart_switcher_input then
                 input = ghost
             elseif ghost.name == smart_switcher_lamp_control then
                 lampctrl = ghost
             elseif ghost.name == smart_switcher_hack then
                 hack = ghost
-                -- log("Found existing output at "..ghost.position.x..", "..ghost.position.y)
             end
         end
     end
@@ -407,41 +369,38 @@ function CreateSmartSwitcher(entity)
             force = entity.force
         }
     end
-    input.operable = false -- disable gui
+    input.operable = false
     input.minable = false
-    input.destructible = false -- don't bother checking if alive
+    input.destructible = false
 
     if settingInput == nil then
         settingInput = entity.surface.create_entity {
             name = smart_switcher_settings,
-            position = posOut, -- slight offset so adjacent lamps won't connect
+            position = posOut,
             force = entity.force
         }
-        -- log("building lamp-control at "..lampctrl.position.x..", "..lampctrl.position.y)
     end
-    settingInput.operable = false -- disable gui
+    settingInput.operable = false
     settingInput.minable = false
-    settingInput.destructible = false -- don't bother checking if alive
+    settingInput.destructible = false
 
     if lampctrl == nil then
         lampctrl = entity.surface.create_entity {
             name = smart_switcher_lamp_control,
-            position = { input.position.x + 0.45, input.position.y + 0.45 }, -- slight offset so adjacent lamps won't connect
+            position = { input.position.x + 0.45, input.position.y + 0.45 },
             force = entity.force
         }
-        -- log("building lamp-control at "..lampctrl.position.x..", "..lampctrl.position.y)
     end
-    lampctrl.operable = false -- disable gui
+    lampctrl.operable = false
     lampctrl.minable = false
-    lampctrl.destructible = false -- don't bother checking if alive
+    lampctrl.destructible = false
 
     if hack == nil then
         hack = entity.surface.create_entity {
             name = smart_switcher_hack,
-            position = { input.position.x - 0.45, input.position.y + 0.45 }, -- slight offset so adjacent lamps won't connect
+            position = { input.position.x - 0.45, input.position.y + 0.45 },
             force = entity.force
         }
-        -- log("building lamp-control at "..lampctrl.position.x..", "..lampctrl.position.y)
     end
     hack.operable = false -- disable gui
     hack.minable = false
@@ -463,7 +422,6 @@ function CreateSmartSwitcher(entity)
     entity.get_or_create_control_behavior().logistic_condition = { condition = { comparator = ">",
                                                                                  first_signal = { type = "virtual", name = smart_switcher_enable_signal },
                                                                                  constant = 0 } }
-
     entity.operable = false;
 
     global.SmartSwitchers[entity.unit_number] = {
@@ -480,7 +438,6 @@ function CreateSmartSwitcher(entity)
         power_off_started = nil,
         enabled = false
     }
-    --UpdateSmartSwitcher(global.SmartSwitchers[entity.unit_number])
 
     script.on_nth_tick(nil)
     script.on_nth_tick(nth_tick, OnTick)
@@ -538,11 +495,6 @@ function RemoveSmartSwitcher(smartSwitcherID)
     global.SmartSwitchers[smartSwitcherID] = nil
 
     if not next(global.SmartSwitchers) then
-        -- reset tick indexes
-        global.tick_state = 0
-        global.tick_stop_index = nil
-        global.tick_request_index = nil
-
         -- unregister events
         script.on_nth_tick(nil)
     end
@@ -555,7 +507,7 @@ end
 function OnSurfaceRemoved(event)
     local surfaceID = event.surface_index
     if debug_log then
-        log("removing SPS stops on surface " .. tostring(surfaceID))
+        log("removing SPS switcher on surface " .. tostring(surfaceID))
     end
     local surface = game.surfaces[surfaceID]
     if surface then

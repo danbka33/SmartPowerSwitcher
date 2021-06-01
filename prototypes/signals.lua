@@ -24,7 +24,7 @@ data:extend({
         type = "virtual-signal",
         name = "smart-power-switcher-plus-inverse",
         localised_description = {"item-description.smart-power-switcher-plus-inverse"},
-        icon = "__SmartPowerSwitcher__/graphics/icons/enabled.png",
+        icon = "__SmartPowerSwitcher__/graphics/icons/plus-inverse.png",
         icon_size = 64,
         subgroup = "smart-power-switcher-signals",
         order = "b-d"
@@ -33,7 +33,7 @@ data:extend({
         type = "virtual-signal",
         name = "smart-power-switcher-minus-inverse",
         localised_description = {"item-description.smart-power-switcher-minus-inverse"},
-        icon = "__SmartPowerSwitcher__/graphics/icons/enabled.png",
+        icon = "__SmartPowerSwitcher__/graphics/icons/minus-inverse.png",
         icon_size = 64,
         subgroup = "smart-power-switcher-signals",
         order = "b-d"

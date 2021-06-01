@@ -7,6 +7,9 @@
 local function initialize()
     ---- initialize stops
     global.SmartSwitchers = global.SmartSwitchers or {}
+
+    global.tick_state = 0;
+    global.tick_stop_index = nil
 end
 
 local function initializeSwitchers()
@@ -71,6 +74,7 @@ local function registerEvents()
         remote.call("creative-mode", "exclude_from_instant_blueprint", smart_switcher_input)
         remote.call("creative-mode", "exclude_from_instant_blueprint", smart_switcher_lamp_control)
         remote.call("creative-mode", "exclude_from_instant_blueprint", smart_switcher_settings)
+        remote.call("creative-mode", "exclude_from_instant_blueprint", smart_switcher_hack)
     end
 
     -- blacklist entities
@@ -81,6 +85,7 @@ local function registerEvents()
         remote.call("PickerDollies", "add_blacklist_name", smart_switcher_input, true)
         remote.call("PickerDollies", "add_blacklist_name", smart_switcher_settings, true)
         remote.call("PickerDollies", "add_blacklist_name", smart_switcher_lamp_control, true)
+        remote.call("PickerDollies", "add_blacklist_name", smart_switcher_hack, true)
     end
 end
 

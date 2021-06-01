@@ -15,6 +15,8 @@ smart_switcher_threshold_signal = "smart-power-switcher-threshold"
 smart_switcher_on_delay_signal = "smart-power-switcher-on-delay"
 smart_switcher_off_delay_signal = "smart-power-switcher-off-delay"
 smart_switcher_enable_signal = "smart-power-switcher-enable"
+smart_switcher_enable_plus_inverse = "smart-power-switcher-plus-inverse"
+smart_switcher_enable_minus_inverse = "smart-power-switcher-minus-inverse"
 
 smart_switcher_entity_names = { -- smart switcher entity.name with I/O entity offset away from tracks in tiles
     ["smart-power-switcher"] = 0,

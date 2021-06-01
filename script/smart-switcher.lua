@@ -69,6 +69,8 @@ function OnTick(event)
             end
 
             local foundEnableSignal = nil;
+            local foundPlusInverseSignal = false;
+            local foundMinusInverseSignal = false;
 
             if switcher.input and switcher.input.valid and switcher.settingInput and switcher.settingInput.valid then
                 local settingSignals = switcher.settingInput.get_merged_signals()
@@ -98,7 +100,12 @@ function OnTick(event)
                         elseif v.signal.name == smart_switcher_on_delay_signal and v.count > 0 then
                             switcher.power_on_delay = v.count
                             foundTurnOnSignal = true
+                        elseif v.signal.name == smart_switcher_enable_minus_inverse and v.count > 0 then
+                            foundMinusInverseSignal = true
+                        elseif v.signal.name == smart_switcher_enable_plus_inverse and v.count > 0 then
+                            foundPlusInverseSignal = true
                         else
+
                             if v.signal.name and v.count > 0 then
                                 limitedSignals[v.signal.name] = v.count
                             else
@@ -153,6 +160,7 @@ function OnTick(event)
                 end
 
                 if next(signals_filtered) then
+                    local foundAllObjects = true;
 
                     for signal, count in pairs(signals_filtered) do
                         if count < 0 then
@@ -166,20 +174,30 @@ function OnTick(event)
                                 end
                             end
 
-                            if not foundedObject then
-                                disabled = true
-                                if debug_log then
-                                    log(signal.name .. " not found ")
+                            if(foundMinusInverseSignal == true) then
+                                if not foundedObject or foundedObject.count < math.abs(count) then
+                                    foundAllObjects = false
                                 end
                             else
-                                if foundedObject.count < math.abs(count) then
+                                if not foundedObject then
                                     disabled = true
                                     if debug_log then
-                                        log(foundedObject.signal.name .. " less than " .. tostring(math.abs(count)))
+                                        log(signal.name .. " not found ")
+                                    end
+                                else
+                                    if foundedObject.count < math.abs(count) then
+                                        disabled = true
+                                        if debug_log then
+                                            log(foundedObject.signal.name .. " less than " .. tostring(math.abs(count)))
+                                        end
                                     end
                                 end
                             end
                         end
+                    end
+
+                    if(foundMinusInverseSignal == true and foundAllObjects == true) then
+                        disabled = true
                     end
                 end
 
@@ -226,11 +244,13 @@ function OnTick(event)
                                 switcher.limitedSignalsGain[name] = false
                             end
 
-                            if switcher.limitedSignalsGain[name] == true then
+                            if switcher.limitedSignalsGain[name] == true and foundPlusInverseSignal == false then
                                 disabled = true
                                 if debug_log then
                                     log("gain resource")
                                 end
+                            elseif switcher.limitedSignalsGain[name] == false and foundPlusInverseSignal == true then
+                                disabled = true
                             end
                         end
                     end
@@ -423,6 +443,7 @@ function CreateSmartSwitcher(entity)
                                                                                  first_signal = { type = "virtual", name = smart_switcher_enable_signal },
                                                                                  constant = 0 } }
     entity.operable = false;
+
 
     global.SmartSwitchers[entity.unit_number] = {
         entity = entity,
